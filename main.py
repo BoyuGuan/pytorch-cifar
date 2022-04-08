@@ -1,4 +1,8 @@
+
 '''Train CIFAR10 with PyTorch.'''
+import os
+import argparse
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -10,10 +14,26 @@ import torchvision.transforms as transforms
 # from  models import *
 import torchvision.models
 
-import os
-import argparse
 
 from utils import progress_bar
+
+import logging
+
+logger = logging.getLogger('myFinetune')
+formatter = logging.Formatter('%(asctime)s : %(name)s - %(levelname)s - %(message)s')
+logger.setLevel(logging.INFO) 
+
+
+os.makedirs('./log',exist_ok=True)
+fileHandler = logging.FileHandler('./log/log_resnet18.log')
+fileHandler.setLevel(logging.INFO)
+fileHandler.setFormatter(formatter)
+commandHandler = logging.StreamHandler()
+commandHandler.setLevel(logging.INFO)
+commandHandler.setFormatter(formatter)
+logger.addHandler(fileHandler)
+logger.addHandler(commandHandler)
+
 
 
 parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Training')
@@ -43,79 +63,57 @@ transform_test = transforms.Compose([
 trainset = torchvision.datasets.CIFAR10(
     root='./data', train=True, download=True, transform=transform_train)
 trainloader = torch.utils.data.DataLoader(
-    trainset, batch_size=64, shuffle=True, num_workers=2)
+    trainset, batch_size=128, shuffle=True, num_workers=2)
 
 testset = torchvision.datasets.CIFAR10(
     root='./data', train=False, download=True, transform=transform_test)
 testloader = torch.utils.data.DataLoader(
-    testset, batch_size=64, shuffle=False, num_workers=2)
-
-classes = ('plane', 'car', 'bird', 'cat', 'deer',
-           'dog', 'frog', 'horse', 'ship', 'truck')
+    testset, batch_size=256, shuffle=False, num_workers=2)
 
 # Model
 print('==> Building model..')
-# net = VGG('VGG19')
-# net = ResNet18()
-# net = PreActResNet18()
-# net = GoogLeNet()
-# net = DenseNet121()
-# net = ResNeXt29_2x64d()
-# net = MobileNet()
-# net = MobileNetV2()
-# net = DPN92()
-# net = ShuffleNetG2()
-# net = SENet18()
-# net = ShuffleNetV2(1)
-# net = EfficientNetB0()
-# net = RegNetX_200MF()
-# net = SimpleDLA()
-net = torchvision.models.resnet18()
-net = net.to(device)
-if device == 'cuda':
-    net = torch.nn.DataParallel(net)
-    cudnn.benchmark = True
 
-# if args.resume:
-#     # Load checkpoint.
-#     print('==> Resuming ......')
-#     assert os.path.isdir('model'), 'Error: no checkpoint directory found!'
-#     checkpoint = torch.load('./checkpoint/ckpt.pth')
-#     net.load_state_dict(checkpoint['net'])
-#     best_acc = checkpoint['acc']
-#     start_epoch = checkpoint['epoch']
+# net = torchvision.models.vgg19()
+# net = torchvision.models.resnet50()
+# net = torchvision.models.resnet18()
+
+
+best_acc = 0
+
 
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.SGD(net.parameters(), lr=args.lr,
-                      momentum=0.9, weight_decay=5e-4)
-scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200)
-
-
 # Training
-def train(epoch):
-    print('\nEpoch: %d' % epoch)
-    net.train()
-    train_loss = 0
-    correct = 0
-    total = 0
-    for batch_idx, (inputs, targets) in enumerate(trainloader):
-        inputs, targets = inputs.to(device), targets.to(device)
-        optimizer.zero_grad()
-        outputs = net(inputs)
-        loss = criterion(outputs, targets)
-        loss.backward()
-        optimizer.step()
+def train(net, netName, epochs):
+    optimizer = optim.SGD(net.parameters(), lr=args.lr,
+                        momentum=0.9, weight_decay=5e-4)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200)
+    for epoch in range(epochs):
+        print('\nEpoch: %d' % epoch)
+        net.train()
+        train_loss = 0
+        correct = 0
+        total = 0
+        for batch_idx, (inputs, targets) in enumerate(trainloader):
+            inputs, targets = inputs.to(device), targets.to(device)
+            optimizer.zero_grad()
+            outputs = net(inputs)
+            loss = criterion(outputs, targets)
+            loss.backward()
+            optimizer.step()
 
-        train_loss += loss.item()
-        _, predicted = outputs.max(1)
-        total += targets.size(0)
-        correct += predicted.eq(targets).sum().item()
+            train_loss += loss.item()
+            _, predicted = outputs.max(1)
+            total += targets.size(0)
+            correct += predicted.eq(targets).sum().item()
+            
+            progress_bar(batch_idx, len(trainloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
+                        % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
+        scheduler.step()
+        test(net, netName)
 
-        progress_bar(batch_idx, len(trainloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
-                     % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
 
 
-def test(epoch):
+def test(net, netName):
     global best_acc
     net.eval()
     test_loss = 0
@@ -134,20 +132,15 @@ def test(epoch):
 
             progress_bar(batch_idx, len(testloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
                          % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
-
     # Save checkpoint.
     acc = 100.*correct/total
     if acc > best_acc:
-        print('Saving..')
-        if not os.path.isdir('trainedModel'):
-            os.mkdir('trainedModel')
-        torch.save(net, './trained/resNet18.pth')
-        print('\nsave success! \n')
+        torch.save(net, './resnet18_finetuned/'+netName)
         best_acc = acc
 
-
-for epoch in range(200):
-    train(epoch)
-    test(epoch)
-    scheduler.step()
-    print(f'\nresNet18 {epoch} done!\n')
+if __name__ == '__main__':
+    for netName in os.listdir('./resnet18_not_finetuned'):
+        net = torch.load('./resnet18_not_finetuned/'+ netName)
+        train(net,netName,200)
+        logger.info(str(best_acc))
+        best_acc = 0

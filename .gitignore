@@ -1,3 +1,7 @@
 __pycache__/
 data/
 temp*
+log/
+resnet18_finetuned/
+resnet18_not_finetuned/
+trainedModel/
