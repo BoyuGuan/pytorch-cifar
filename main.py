@@ -24,20 +24,12 @@ formatter = logging.Formatter('%(asctime)s : %(name)s - %(levelname)s - %(messag
 logger.setLevel(logging.INFO) 
 
 
-os.makedirs('./log',exist_ok=True)
-fileHandler = logging.FileHandler('./log/log_resnet18.log')
-fileHandler.setLevel(logging.INFO)
-fileHandler.setFormatter(formatter)
-commandHandler = logging.StreamHandler()
-commandHandler.setLevel(logging.INFO)
-commandHandler.setFormatter(formatter)
-logger.addHandler(fileHandler)
-logger.addHandler(commandHandler)
+
 
 
 
 parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Training')
-parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
+parser.add_argument('--lr', default=0.0001, type=float, help='learning rate')
 # parser.add_argument('--resume', '-r', action='store_true',
 #                     help='resume from checkpoint')
 args = parser.parse_args()
@@ -72,11 +64,6 @@ testloader = torch.utils.data.DataLoader(
 
 # Model
 print('==> Building model..')
-
-# net = torchvision.models.vgg19()
-# net = torchvision.models.resnet50()
-# net = torchvision.models.resnet18()
-
 
 best_acc = 0
 
@@ -135,12 +122,23 @@ def test(net, netName):
     # Save checkpoint.
     acc = 100.*correct/total
     if acc > best_acc:
-        torch.save(net, './resnet18_finetuned/'+netName)
+        torch.save(net, './channelPruning/vgg19_finetuned/'+netName)
         best_acc = acc
 
 if __name__ == '__main__':
-    for netName in os.listdir('./resnet18_not_finetuned'):
-        net = torch.load('./resnet18_not_finetuned/'+ netName)
+    os.makedirs('./log',exist_ok=True)
+    fileHandler = logging.FileHandler('./log/vgg19.log')
+    fileHandler.setLevel(logging.INFO)
+    fileHandler.setFormatter(formatter)
+    commandHandler = logging.StreamHandler()
+    commandHandler.setLevel(logging.INFO)
+    commandHandler.setFormatter(formatter)
+    logger.addHandler(fileHandler)
+    logger.addHandler(commandHandler)
+
+    modelNames = sorted(os.listdir('./channelPruning/vgg19_not_finetuned'))
+    for netName in modelNames:
+        net = torch.load('./channelPruning/vgg19_not_finetuned/'+ netName)
         train(net,netName,200)
-        logger.info(str(best_acc))
+        logger.info(netName + '__' +str(best_acc))
         best_acc = 0

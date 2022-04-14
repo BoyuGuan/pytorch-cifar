@@ -1,7 +1,8 @@
 __pycache__/
 data/
-temp*
+*temp*
 log/
 resnet18_finetuned/
 resnet18_not_finetuned/
 trainedModel/
+channelPruning/
