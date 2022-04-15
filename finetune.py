@@ -1,5 +1,6 @@
 
 '''Train CIFAR10 with PyTorch.'''
+from ast import comprehension
 import os
 import argparse
 
@@ -23,13 +24,13 @@ logger = logging.getLogger('myFinetune')
 formatter = logging.Formatter('%(asctime)s : %(name)s - %(levelname)s - %(message)s')
 logger.setLevel(logging.INFO) 
 
-
-
+finetuneModelName = 'resnet50'
+compressMeasure =  'channelPruning'
 
 
 
 parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Training')
-parser.add_argument('--lr', default=0.001, type=float, help='learning rate')
+parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
 # parser.add_argument('--resume', '-r', action='store_true',
 #                     help='resume from checkpoint')
 args = parser.parse_args()
@@ -55,12 +56,12 @@ transform_test = transforms.Compose([
 trainset = torchvision.datasets.CIFAR10(
     root='./data', train=True, download=True, transform=transform_train)
 trainloader = torch.utils.data.DataLoader(
-    trainset, batch_size=4, shuffle=True, num_workers=2)
+    trainset, batch_size=128, shuffle=True, num_workers=2)
 
 testset = torchvision.datasets.CIFAR10(
     root='./data', train=False, download=True, transform=transform_test)
 testloader = torch.utils.data.DataLoader(
-    testset, batch_size=128, shuffle=False, num_workers=2)
+    testset, batch_size=256, shuffle=False, num_workers=2)
 
 # Model
 print('==> Building model..')
@@ -122,12 +123,12 @@ def test(net, netName):
     # Save checkpoint.
     acc = 100.*correct/total
     if acc > best_acc:
-        torch.save(net, './channelPruning/vgg19_finetuned/'+netName)
+        torch.save(net,  os.path.join(f'./{compressMeasure}/', f'{finetuneModelName}_finetuned',netName))
         best_acc = acc
 
 if __name__ == '__main__':
     os.makedirs('./log',exist_ok=True)
-    fileHandler = logging.FileHandler('./log/vgg19.log')
+    fileHandler = logging.FileHandler( os.path.join('./log',f'{finetuneModelName}.log'))
     fileHandler.setLevel(logging.INFO)
     fileHandler.setFormatter(formatter)
     commandHandler = logging.StreamHandler()
@@ -136,9 +137,10 @@ if __name__ == '__main__':
     logger.addHandler(fileHandler)
     logger.addHandler(commandHandler)
 
-    modelNames = sorted(os.listdir('./channelPruning/vgg19_not_finetuned'))
+    os.makedirs( os.path.join( f'./{compressMeasure}', f'{finetuneModelName}_finetuned' ), exist_ok=True )
+    modelNames = sorted(os.listdir(f'./{compressMeasure}/' + finetuneModelName + '_not_finetuned'))
     for netName in modelNames:
-        net = torch.load('./channelPruning/vgg19_not_finetuned/'+ netName)
+        net = torch.load( os.path.join( f'./{compressMeasure}',  f'{finetuneModelName}_not_finetuned/' , netName))
         train(net,netName,200)
-        logger.info(netName + '__' +str(best_acc))
+        logger.info(netName + '__' + str(best_acc))
         best_acc = 0
