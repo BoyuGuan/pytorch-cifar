@@ -24,8 +24,8 @@ logger = logging.getLogger('myFinetune')
 formatter = logging.Formatter('%(asctime)s : %(name)s - %(levelname)s - %(message)s')
 logger.setLevel(logging.INFO) 
 
-finetuneModelName = 'resnet50'
-compressMeasure =  'channelPruning'
+finetuneModelName = 'resnet18'
+compressMeasure =  'weight_svd'
 
 
 

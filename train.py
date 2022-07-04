@@ -55,15 +55,12 @@ transform_test = transforms.Compose([
 trainset = torchvision.datasets.CIFAR10(
     root='./data', train=True, download=True, transform=transform_train)
 trainloader = torch.utils.data.DataLoader(
-    trainset, batch_size=4, shuffle=True, num_workers=2)
+    trainset, batch_size=128, shuffle=True, num_workers=2)
 
 testset = torchvision.datasets.CIFAR10(
     root='./data', train=False, download=True, transform=transform_test)
 testloader = torch.utils.data.DataLoader(
     testset, batch_size=128, shuffle=False, num_workers=2)
-
-# Model
-print('==> Building model..')
 
 best_acc = 0
 
@@ -71,6 +68,7 @@ best_acc = 0
 criterion = nn.CrossEntropyLoss()
 # Training
 def train(net, netName, epochs):
+    net = net.cuda()
     optimizer = optim.SGD(net.parameters(), lr=args.lr,
                         momentum=0.9, weight_decay=5e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200)
@@ -122,12 +120,12 @@ def test(net, netName):
     # Save checkpoint.
     acc = 100.*correct/total
     if acc > best_acc:
-        torch.save(net, './channelPruning/vgg19_finetuned/'+netName)
+        torch.save(net, './trainedModel/mobilenet.pth')
         best_acc = acc
 
 if __name__ == '__main__':
     os.makedirs('./log',exist_ok=True)
-    fileHandler = logging.FileHandler('./log/vgg19.log')
+    fileHandler = logging.FileHandler('./log/mobilenetv2_Traning.log')
     fileHandler.setLevel(logging.INFO)
     fileHandler.setFormatter(formatter)
     commandHandler = logging.StreamHandler()
@@ -136,9 +134,7 @@ if __name__ == '__main__':
     logger.addHandler(fileHandler)
     logger.addHandler(commandHandler)
 
-    modelNames = sorted(os.listdir('./channelPruning/vgg19_not_finetuned'))
-    for netName in modelNames:
-        net = torch.load('./channelPruning/vgg19_not_finetuned/'+ netName)
-        train(net,netName,200)
-        logger.info(netName + '__' +str(best_acc))
-        best_acc = 0
+
+    net = torchvision.models.mobilenet_v2()
+    train(net, 'mobileNet v2', 200)
+    logger.info('mobileNet v2' + '__' +str(best_acc))
