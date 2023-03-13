@@ -4,7 +4,6 @@ import os
 
 import pynvml
 
-
 logger = logging.getLogger('monitor')
 logger.setLevel(logging.INFO) 
 formatter = logging.Formatter("%(asctime)s: %(message)s")
