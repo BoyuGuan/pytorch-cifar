@@ -18,9 +18,11 @@ commandHandler.setFormatter(formatter)
 logger.addHandler(fileHandler)
 logger.addHandler(commandHandler)
 
+deviceCount = pynvml.nvmlDeviceGetCount()
+
 while True:
     pynvml.nvmlInit()
-    for i in range(8):
+    for i in range(deviceCount):
         handle = pynvml.nvmlDeviceGetHandleByIndex(i) # i表示显卡标号
         meminfo = pynvml.nvmlDeviceGetMemoryInfo(handle)
         logger.info( f'cuda:{i} memory: {str( meminfo.used/1024**2)}' )
